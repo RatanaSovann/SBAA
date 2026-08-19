@@ -1,0 +1,5 @@
+# Milestone 1: ingest & sampling
+streamlit
+opencv-python
+numpy
+pillow

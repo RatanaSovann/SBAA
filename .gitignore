@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+data/uploads/
+data/cache/
+*.egg-info/
+streamlit.log
+
+# Large local test assets — never commit match footage or video in general.
+sample_data/video/
+*.mp4
+*.mov
+*.mkv
+*.avi
