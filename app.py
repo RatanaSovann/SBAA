@@ -13,13 +13,15 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from sbaa.video import estimate_sample_count, file_cache_key, probe_video, sample_frames  # noqa: E402
+from sbaa.video import calibrate, estimate_sample_count, file_cache_key, plan_sampling, probe_video, sample_frames  # noqa: E402
 
 ROOT = Path(__file__).parent
 UPLOADS_DIR = ROOT / "data" / "uploads"
 CACHE_DIR = ROOT / "data" / "cache"
+VIDEO_DIR = ROOT / "sample_data" / "video"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
+VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 
 st.set_page_config(page_title="SBAA", layout="wide")
 st.title("Sport Brand Annotation Assistant")
@@ -32,6 +34,8 @@ if "video_info" not in st.session_state:
     st.session_state.video_info = None
 if "sampled_frames" not in st.session_state:
     st.session_state.sampled_frames = None
+if "calibration" not in st.session_state:
+    st.session_state.calibration = None
 
 
 def fmt_time(seconds: float) -> str:
@@ -40,19 +44,30 @@ def fmt_time(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
-# --- Step 1: upload match video -------------------------------------------------
+# --- Step 1: pick match video -------------------------------------------------
 st.header("1. Match video")
-video_file = st.file_uploader("Upload a match video", type=["mp4", "mov", "mkv", "avi"])
+st.caption(
+    f"Match videos run several GB, too large for a browser upload buffered in "
+    f"memory. Drop the file into `{VIDEO_DIR.relative_to(ROOT)}` and pick it below."
+)
 
-if video_file is not None:
-    dest = UPLOADS_DIR / video_file.name
-    if not dest.exists() or dest.stat().st_size != video_file.size:
-        with open(dest, "wb") as f:
-            f.write(video_file.getbuffer())
-    if st.session_state.video_path != str(dest):
-        st.session_state.video_path = str(dest)
-        st.session_state.video_info = probe_video(dest)
+video_candidates = sorted(
+    p for p in VIDEO_DIR.iterdir()
+    if p.is_file() and p.suffix.lower() in {".mp4", ".mov", ".mkv", ".avi"}
+) if VIDEO_DIR.exists() else []
+
+if not video_candidates:
+    st.info(f"No video files found in `{VIDEO_DIR.relative_to(ROOT)}`. Drop one there and refresh.")
+else:
+    selected = st.selectbox(
+        "Video file", video_candidates, format_func=lambda p: p.name,
+    )
+    if st.session_state.video_path != str(selected):
+        st.session_state.video_path = str(selected)
+        st.session_state.video_info = probe_video(selected)
         st.session_state.sampled_frames = None  # new video invalidates any prior sample
+        with st.spinner("Benchmarking decode speed on this file..."):
+            st.session_state.calibration = calibrate(selected, st.session_state.video_info)
 
 if st.session_state.video_info:
     info = st.session_state.video_info
@@ -108,14 +123,24 @@ else:
         help="Smaller = more frames, better recall of brief appearances, more CPU time. "
              "This machine has no GPU, so keep this coarse for a full match.",
     )
-    est = estimate_sample_count(info, interval)
-    st.caption(f"~{est:,} frames will be sampled at this interval.")
+    calibration = st.session_state.calibration
+    plan = plan_sampling(info, interval, calibration) if calibration else None
+    if plan:
+        st.caption(
+            f"~{plan.sample_count:,} frames, using **{plan.strategy}** decoding "
+            f"— est. {fmt_time(plan.estimated_seconds)}."
+        )
+    else:
+        st.caption(f"~{estimate_sample_count(info, interval):,} frames will be sampled.")
 
     if st.button("Sample frames", type="primary"):
         cache_key = file_cache_key(st.session_state.video_path)
         out_dir = CACHE_DIR / cache_key / f"interval_{interval}"
-        with st.spinner(f"Sampling ~{est:,} frames..."):
-            frames = sample_frames(st.session_state.video_path, out_dir, interval)
+        eta = fmt_time(plan.estimated_seconds) if plan else "unknown"
+        with st.spinner(f"Sampling (est. {eta})..."):
+            frames = sample_frames(
+                st.session_state.video_path, out_dir, interval, calibration=calibration,
+            )
         st.session_state.sampled_frames = frames
         st.success(f"Sampled {len(frames)} frames.")
 
