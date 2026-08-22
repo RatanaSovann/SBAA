@@ -3,3 +3,15 @@ streamlit
 opencv-python
 numpy
 pillow
+
+# Milestone 2: coarse CLIP ranking
+# torch: install from the CPU-only index (see CLAUDE.md / setup docs) to avoid
+# pulling multi-GB CUDA packages on this GPU-less machine, e.g.:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch
+open-clip-torch
+
+# OCR verification pass (wordmark-style assets): CLIP matches sign gestalt, not the
+# text on it, so this catches false positives it can't. ONNX-based, no system
+# Tesseract binary needed -- stays self-contained inside the venv like everything else.
+rapidocr-onnxruntime

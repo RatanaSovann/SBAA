@@ -7,8 +7,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 SBAA (Sport Brand Annotation Assistant): given a sports match video and reference images for
 brand assets (one image per brand/asset), retrieves and ranks likely on-screen appearances,
 proposes bounding boxes, and lets an analyst approve the best two examples per asset. Replaces
-a manual frame-by-frame spreadsheet workflow. Exports CSV, an Excel review workbook with
-embedded annotated images, and JSON audit files.
+a manual frame-by-frame spreadsheet workflow.
+
+The output is a lightweight brief, not a full audit record: the two approved example frames
+per asset, their frame numbers, and the asset details. That brief is handed off to the ML team,
+who run the actual brand-exposure-value scan downstream using it. SBAA's job stops at producing
+those two examples fast and correctly (non-hallucinated) — it does not need to retain rejected
+candidates, scores, or a decision trail; that reproducibility burden belongs to a different
+system, if anything ever needs it.
 
 ## Hardware constraint (drives most design decisions)
 
@@ -77,8 +83,9 @@ how much of the expensive stage 2 work is needed.
 Milestones, in order (each depends on the last): (1) ingest & sample — done; (2) coarse CLIP
 ranking of sampled frames per brand asset; (3) region proposals on top-ranked frames only; (4)
 de-duplication of near-identical/adjacent detections; (5) analyst review UI (approve top 2 per
-asset); (6) export to CSV, an Excel workbook with embedded annotated crops, and a JSON audit
-trail of all candidates plus decisions.
+asset); (6) export the brief — the two approved frames per asset, their frame numbers, and the
+asset details — for handoff to the ML team's downstream exposure-value scan. No audit trail of
+rejected candidates or decision history; that's explicitly out of scope.
 
 ## Data handling
 

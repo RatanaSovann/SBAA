@@ -5,6 +5,7 @@ data/uploads/
 data/cache/
 *.egg-info/
 streamlit.log
+streamlit_run.log
 
 # Large local test assets — never commit match footage or video in general.
 sample_data/video/
