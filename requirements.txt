@@ -15,3 +15,10 @@ open-clip-torch
 # text on it, so this catches false positives it can't. ONNX-based, no system
 # Tesseract binary needed -- stays self-contained inside the venv like everything else.
 rapidocr-onnxruntime
+
+# Milestones 5-6: analyst review UI + Excel brief export
+# streamlit-cropper: manual box-drawing at approval time. No automated bounding-box
+# detector is in the pipeline (see CLAUDE.md's "Planned pipeline" for why) -- the
+# analyst draws the box themselves, same moment they confirm the candidate.
+streamlit-cropper
+openpyxl

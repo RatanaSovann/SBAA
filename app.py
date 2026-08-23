@@ -6,14 +6,18 @@ frames from the video at a configurable interval, and preview them.
 
 from __future__ import annotations
 
+import io
 import sys
 from pathlib import Path
 
 import streamlit as st
+from PIL import Image
+from streamlit_cropper import st_cropper
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from sbaa.retrieval import rank_frames, verify_with_ocr  # noqa: E402
+from sbaa.export import build_brief_workbook, burn_box  # noqa: E402
+from sbaa.retrieval import deduplicate_by_time, rank_frames, verify_with_ocr  # noqa: E402
 from sbaa.video import (  # noqa: E402
     calibrate, estimate_sample_count, file_cache_key, filter_sharp, load_cached_frames,
     plan_sampling, probe_video, sample_frames,
@@ -44,6 +48,8 @@ if "rankings" not in st.session_state:
     st.session_state.rankings = {}  # (brand, asset) -> list[RankedFrame]
 if "ranking_stats" not in st.session_state:
     st.session_state.ranking_stats = {}  # (brand, asset) -> {"clip_candidates", "ocr_confirmed"}
+if "approvals" not in st.session_state:
+    st.session_state.approvals = {}  # (brand, asset) -> list of up to 2 {file_path, frame_index, timestamp_sec, bbox}
 
 
 def fmt_time(seconds: float) -> str:
@@ -88,6 +94,10 @@ if st.session_state.video_info:
 # --- Step 2: register brand assets -----------------------------------------------
 st.header("2. Brand assets")
 st.caption("Add a reference image for each brand asset you want SBAA to look for.")
+st.caption(
+    "For wordmark/text logos, a flat crop on a white background ranks noticeably better than "
+    "a transparent vector/SVG export — see CLAUDE.md's domain gap notes."
+)
 
 with st.form("add_asset", clear_on_submit=True):
     fc1, fc2, fc3 = st.columns([2, 2, 3])
@@ -166,6 +176,7 @@ else:
         st.session_state.sampled_frames = frames
         st.session_state.rankings = {}  # new sample invalidates any prior ranking
         st.session_state.ranking_stats = {}
+        st.session_state.approvals = {}  # and any manual approvals made against the old frames
         st.success(f"Sampled {len(frames)} frames.")
 
     if cached_count:
@@ -195,6 +206,7 @@ else:
             st.session_state.sampled_frames = cached
             st.session_state.rankings = {}
             st.session_state.ranking_stats = {}
+            st.session_state.approvals = {}
         if bc2.button("Re-sample (slow)"):
             run_sampling()
     else:
@@ -224,6 +236,41 @@ st.caption(
 )
 
 OCR_TOP_K = 50
+DEDUP_MIN_GAP_SEC = 10.0
+
+
+def gather_reference_paths(asset: dict) -> list[str]:
+    """The original uploaded logo, plus any analyst-confirmed real crops saved for this asset.
+
+    Confirmed crops (`confirmed_<frame_index>.jpg`, written at approval time in Step 5) live
+    right next to the original reference image, so a fresh asset registration and a re-rank
+    both see the same growing reference set with no separate bookkeeping.
+    """
+    asset_dir = Path(asset["image_path"]).parent
+    confirmed = sorted(str(p) for p in asset_dir.glob("confirmed_*.jpg"))
+    return [asset["image_path"]] + confirmed
+
+
+def rank_one_asset(asset, sharp_frames, embedding_cache_dir, on_embed_progress, on_ocr_progress):
+    ref_paths = gather_reference_paths(asset)
+    clip_ranked = rank_frames(
+        ref_paths, sharp_frames, embedding_cache_dir, on_progress=on_embed_progress,
+    )
+    verified = verify_with_ocr(
+        clip_ranked, asset["image_path"], top_k=OCR_TOP_K, on_progress=on_ocr_progress,
+    )
+    ocr_applied = verified is not clip_ranked  # unchanged list means no legible reference text
+    deduped = deduplicate_by_time(verified, min_gap_sec=DEDUP_MIN_GAP_SEC)
+    stats = {
+        "sharp_frames": len(sharp_frames),
+        "total_frames": len(st.session_state.sampled_frames),
+        "clip_candidates": len(clip_ranked),
+        "ocr_confirmed": len(verified) if ocr_applied else None,
+        "deduped": len(deduped),
+        "reference_count": len(ref_paths),
+    }
+    return deduped, stats
+
 
 frames = st.session_state.sampled_frames
 if frames is None:
@@ -256,21 +303,9 @@ else:
         for a in st.session_state.assets:
             key = (a["brand"], a["asset"])
             status.caption(f"Ranking for {a['brand']} — {a['asset']}...")
-            clip_ranked = rank_frames(
-                a["image_path"], sharp_frames, embedding_cache_dir, on_progress=on_embed_progress,
-            )
-            status.caption(f"Verifying {a['brand']} — {a['asset']} with OCR...")
-            verified = verify_with_ocr(
-                clip_ranked, a["image_path"], top_k=OCR_TOP_K, on_progress=on_ocr_progress,
-            )
-            ocr_applied = verified is not clip_ranked  # unchanged list means no legible reference text
-            rankings[key] = verified
-            ranking_stats[key] = {
-                "sharp_frames": len(sharp_frames),
-                "total_frames": len(frames),
-                "clip_candidates": len(clip_ranked),
-                "ocr_confirmed": len(verified) if ocr_applied else None,
-            }
+            deduped, stats = rank_one_asset(a, sharp_frames, embedding_cache_dir, on_embed_progress, on_ocr_progress)
+            rankings[key] = deduped
+            ranking_stats[key] = stats
         st.session_state.rankings = rankings
         st.session_state.ranking_stats = ranking_stats
         progress.empty()
@@ -290,9 +325,15 @@ else:
                 f"{stats['clip_candidates']:,} CLIP-ranked"
             )
             if stats["ocr_confirmed"] is not None:
-                st.caption(f"{funnel} → top {OCR_TOP_K} OCR-checked → {stats['ocr_confirmed']} confirmed.")
+                funnel += f" → top {OCR_TOP_K} OCR-checked → {stats['ocr_confirmed']} confirmed"
             else:
-                st.caption(f"{funnel} (no legible text on reference — OCR check skipped).")
+                funnel += " (no legible text on reference — OCR check skipped)"
+            st.caption(f"{funnel} → {stats['deduped']} distinct appearances (deduped).")
+            if stats["reference_count"] > 1:
+                st.caption(
+                    f"Ranked using 1 logo + {stats['reference_count'] - 1} analyst-confirmed "
+                    "example(s) from earlier approvals."
+                )
         if not ranked:
             st.warning(
                 "No candidates survived. Either this asset doesn't appear in the sampled "
@@ -309,3 +350,126 @@ else:
                     caption=f"{fmt_time(rf.frame.timestamp_sec)} · {rf.score:.3f}",
                     use_container_width=True,
                 )
+
+# --- Step 5: review & approve --------------------------------------------------
+st.header("5. Review & approve")
+st.caption(
+    "Pick up to two examples per asset. There's no automated localization on this hardware "
+    "yet (see CLAUDE.md), so draw a box around the asset by hand before approving."
+)
+
+MAX_APPROVALS = 2
+
+for a in st.session_state.assets:
+    key = (a["brand"], a["asset"])
+    ranked = st.session_state.rankings.get(key)
+    if not ranked:
+        continue
+    key_str = f"{a['brand']}__{a['asset']}"
+    st.subheader(f"{a['brand']} — {a['asset']}")
+    approved = st.session_state.approvals.setdefault(key, [])
+
+    if approved:
+        st.caption(f"Approved ({len(approved)}/{MAX_APPROVALS}):")
+        acols = st.columns(MAX_APPROVALS)
+        for i, entry in enumerate(approved):
+            with acols[i]:
+                st.image(
+                    burn_box(entry["file_path"], entry["bbox"]),
+                    caption=f"{fmt_time(entry['timestamp_sec'])} · frame {entry['frame_index']}",
+                    use_container_width=True,
+                )
+                if st.button("Remove", key=f"remove_approval_{key_str}_{i}"):
+                    approved.pop(i)
+                    st.rerun()
+
+    if len(approved) >= MAX_APPROVALS:
+        st.info(f"{MAX_APPROVALS} examples already approved for this asset — remove one to pick a different candidate.")
+        continue
+
+    if 1 <= len(approved) < MAX_APPROVALS:
+        rc1, rc2 = st.columns([1, 3])
+        if rc1.button("Re-rank using confirmed example(s)", key=f"rerank_{key_str}"):
+            cache_key = file_cache_key(st.session_state.video_path)
+            embedding_cache_dir = CACHE_DIR / cache_key / f"interval_{interval}" / "embeddings"
+            sharp_frames = filter_sharp(st.session_state.sampled_frames)
+            progress = st.progress(0.0)
+            status = st.empty()
+
+            def on_embed_progress(done: int, total: int, _status=status, _progress=progress) -> None:
+                _progress.progress(done / total if total else 1.0)
+                _status.caption(f"Embedding frames: {done:,}/{total:,}")
+
+            def on_ocr_progress(done: int, total: int, _status=status, _progress=progress) -> None:
+                _progress.progress(done / total if total else 1.0)
+                _status.caption(f"Verifying candidates with OCR: {done}/{total}")
+
+            deduped, stats = rank_one_asset(a, sharp_frames, embedding_cache_dir, on_embed_progress, on_ocr_progress)
+            st.session_state.rankings[key] = deduped
+            st.session_state.ranking_stats[key] = stats
+            progress.empty()
+            status.empty()
+            st.rerun()
+        rc2.caption(
+            "Re-embeds using the original logo plus every confirmed example approved so far "
+            "for this asset — surfaces appearances a clean-logo-only ranking missed."
+        )
+
+    approved_indices = {e["frame_index"] for e in approved}
+    remaining = [rf for rf in ranked if rf.frame.frame_index not in approved_indices]
+    if not remaining:
+        st.info("Every surfaced candidate for this asset is already approved.")
+        continue
+
+    choice = st.selectbox(
+        "Candidate to review",
+        range(len(remaining)),
+        format_func=lambda i, _r=remaining: f"{fmt_time(_r[i].frame.timestamp_sec)} · score {_r[i].score:.3f}",
+        key=f"candidate_select_{key_str}",
+    )
+    candidate = remaining[choice]
+    image = Image.open(candidate.frame.file_path).convert("RGB")
+    box = st_cropper(
+        image, box_color="red", return_type="box", realtime_update=True,
+        key=f"cropper_{key_str}_{choice}",
+    )
+    if st.button("Approve this frame", key=f"approve_{key_str}_{choice}"):
+        approved.append({
+            "file_path": candidate.frame.file_path,
+            "frame_index": candidate.frame.frame_index,
+            "timestamp_sec": candidate.frame.timestamp_sec,
+            "bbox": box,
+        })
+        # Save the approved crop as a future reference -- both for an immediate re-rank and
+        # for the next time this brand/asset is registered against a different match video.
+        crop = image.crop((box["left"], box["top"], box["left"] + box["width"], box["top"] + box["height"]))
+        confirmed_path = Path(a["image_path"]).parent / f"confirmed_{candidate.frame.frame_index}.jpg"
+        crop.save(confirmed_path)
+        st.rerun()
+
+# --- Step 6: export brief -------------------------------------------------------
+st.header("6. Export brief")
+st.caption(
+    "The approved examples, one Excel workbook, one sheet per brand — matching the manual "
+    "spreadsheet process this replaces. No rejected candidates or decision history included."
+)
+
+has_any_approval = any(
+    st.session_state.approvals.get((a["brand"], a["asset"])) for a in st.session_state.assets
+)
+if not has_any_approval:
+    st.info("Approve at least one example above before exporting.")
+else:
+    if st.button("Build export", type="primary"):
+        wb = build_brief_workbook(st.session_state.approvals)
+        buf = io.BytesIO()
+        wb.save(buf)
+        st.session_state["export_buffer"] = buf.getvalue()
+
+    if "export_buffer" in st.session_state:
+        st.download_button(
+            "Download brief.xlsx",
+            data=st.session_state["export_buffer"],
+            file_name="brief.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )

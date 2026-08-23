@@ -115,17 +115,25 @@ def embed_images_cached(
 
 
 def rank_frames(
-    reference_image_path: str | Path,
+    reference_image_path: str | Path | list[str | Path],
     frames: list[FrameMeta],
     embedding_cache_dir: str | Path,
     on_progress: Callable[[int, int], None] | None = None,
 ) -> list[RankedFrame]:
-    """Rank sampled frames by cosine similarity to a brand-asset reference image."""
-    ref_embedding = embed_image(reference_image_path)
+    """Rank sampled frames by cosine similarity to one or more brand-asset reference images.
+
+    A single path behaves as a plain reference-image search. A list scores each frame by the
+    *max* similarity across all references rather than an average -- e.g. a clean logo plus an
+    analyst-confirmed real appearance are visually distinct styles, and averaging them would
+    blur into a vector that matches neither well. Max lets each reference "own" the frames it's
+    actually good at recognizing.
+    """
+    ref_paths = [reference_image_path] if isinstance(reference_image_path, (str, Path)) else list(reference_image_path)
+    ref_embeddings = [embed_image(p) for p in ref_paths]
     frame_embeddings = embed_images_cached(
         [f.file_path for f in frames], embedding_cache_dir, on_progress=on_progress,
     )
-    scores = frame_embeddings @ ref_embedding
+    scores = np.max([frame_embeddings @ ref for ref in ref_embeddings], axis=0)
     order = np.argsort(-scores)
     return [RankedFrame(frame=frames[i], score=float(scores[i])) for i in order]
 
@@ -161,3 +169,24 @@ def verify_with_ocr(
         if on_progress:
             on_progress(i + 1, len(shortlist))
     return verified
+
+
+def deduplicate_by_time(ranked: list[RankedFrame], min_gap_sec: float = 10.0) -> list[RankedFrame]:
+    """Collapse candidates that are the same physical appearance, not independent evidence.
+
+    Frames sampled a couple of seconds apart during one continuous shot of a board are the
+    same moment, not distinct evidence of the asset appearing -- keeping all of them just
+    burns the analyst's two picks on near-identical crops instead of showing genuinely
+    different appearances. Greedily keeps the highest-scoring frame within each
+    `min_gap_sec` window and drops the rest; assumes `ranked` is already score-sorted (as
+    `rank_frames`/`verify_with_ocr` return it), so the first frame kept in a cluster is
+    always its best-scoring representative.
+    """
+    kept: list[RankedFrame] = []
+    kept_times: list[float] = []
+    for rf in ranked:
+        t = rf.frame.timestamp_sec
+        if all(abs(t - kt) >= min_gap_sec for kt in kept_times):
+            kept.append(rf)
+            kept_times.append(t)
+    return kept
