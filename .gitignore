@@ -6,6 +6,7 @@ data/cache/
 *.egg-info/
 streamlit.log
 streamlit_run.log
+nimbalyst-local/
 
 # Large local test assets — never commit match footage or video in general.
 sample_data/video/
@@ -13,3 +14,7 @@ sample_data/video/
 *.mov
 *.mkv
 *.avi
+
+# Model checkpoints downloaded on demand (ultralytics/YOLOE etc.) -- never commit weights.
+*.pt
+mobileclip2_b.ts
