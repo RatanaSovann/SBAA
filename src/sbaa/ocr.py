@@ -15,6 +15,8 @@ second pass confirms" structure as the rest of the pipeline.
 from __future__ import annotations
 
 import difflib
+import hashlib
+import json
 import re
 from pathlib import Path
 from typing import Callable
@@ -56,3 +58,61 @@ def matches_any(candidate_lines: list[str], target_lines: list[str], min_ratio: 
     or misreads a character or two (e.g. a logo icon read as a stray leading letter).
     """
     return any(_fuzzy_match(c, t, min_ratio) for c in candidate_lines for t in target_lines)
+
+
+def matches_brand_name(candidate_lines: list[str], brand: str, min_ratio: float = 0.7) -> bool:
+    """True if any detected text line names the brand directly.
+
+    Unlike `matches_any` (which compares a candidate against the *reference image's* own OCR
+    text -- a no-op when the reference is a graphic-only logo with nothing legible on it), this
+    compares against the brand name the analyst actually typed. It works the same whether the
+    registered reference is a photo, a stylized vector mark, or has no legible text at all --
+    see `retrieval.search_by_text()` for why that independence matters.
+    """
+    return matches_any(candidate_lines, [_normalize(brand)], min_ratio=min_ratio)
+
+
+def _text_cache_path(cache_dir: Path, image_path: Path) -> Path:
+    key = hashlib.sha1(str(image_path.resolve()).encode()).hexdigest()[:16]
+    return cache_dir / f"{key}.json"
+
+
+def detect_text_cached(
+    paths: list[str | Path],
+    cache_dir: str | Path,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> dict[str, list[str]]:
+    """`detect_text()` for many frames, reusing a disk cache keyed by frame path.
+
+    Text extraction is brand-independent -- the same detected lines on a frame get checked
+    against every brand name searched for. Caching here means the first brand searched against
+    a given sample of frames pays the full OCR cost, and every brand searched afterward against
+    the same frames is a fast in-memory text comparison, not a re-run of OCR. Mirrors
+    `retrieval.embed_images_cached()`'s per-file disk-cache pattern.
+    """
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    results: dict[str, list[str]] = {}
+    pending: list[tuple[Path, Path]] = []
+    for raw_path in paths:
+        p = Path(raw_path)
+        cpath = _text_cache_path(cache_dir, p)
+        if cpath.exists():
+            results[str(p)] = json.loads(cpath.read_text())
+        else:
+            pending.append((p, cpath))
+
+    done = len(paths) - len(pending)
+    if on_progress:
+        on_progress(done, len(paths))
+
+    for p, cpath in pending:
+        lines = detect_text(p)
+        cpath.write_text(json.dumps(lines))
+        results[str(p)] = lines
+        done += 1
+        if on_progress:
+            on_progress(done, len(paths))
+
+    return results

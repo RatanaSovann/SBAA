@@ -3,10 +3,16 @@ __pycache__/
 *.pyc
 data/uploads/
 data/cache/
+# Analyst working state. Unlike the two above this is NOT regenerable -- see CLAUDE.md.
+data/progress/
+# Analyst-added placement categories. Cheap to retype, but losing it silently reverts
+# auto-discovery to mislabelling placements it no longer has a bucket for.
+data/categories.json
 *.egg-info/
 streamlit.log
 streamlit_run.log
 nimbalyst-local/
+.env
 
 # Large local test assets — never commit match footage or video in general.
 sample_data/video/
@@ -18,3 +24,8 @@ sample_data/video/
 # Model checkpoints downloaded on demand (ultralytics/YOLOE etc.) -- never commit weights.
 *.pt
 mobileclip2_b.ts
+
+# Locally-installed agent skills (via `npx skills add`) -- personal tooling, unrelated to SBAA.
+.agents/
+.claude/
+skills-lock.json

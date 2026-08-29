@@ -22,3 +22,9 @@ rapidocr-onnxruntime
 # analyst draws the box themselves, same moment they confirm the candidate.
 streamlit-cropper
 openpyxl
+
+# Auto-discover categories from a logo, VLM classification stage: the only external
+# dependency in this project (see CLAUDE.md). Requires ANTHROPIC_API_KEY in the
+# environment; the auto-discover form in Step 2 is a no-op without it.
+anthropic
+python-dotenv

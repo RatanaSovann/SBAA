@@ -171,6 +171,58 @@ def verify_with_ocr(
     return verified
 
 
+def search_by_text(
+    frames: list[FrameMeta],
+    brand: str,
+    ocr_cache_dir: str | Path,
+    on_progress: Callable[[int, int], None] | None = None,
+) -> list[RankedFrame]:
+    """Find frames whose on-screen text names the brand directly -- independent of CLIP ranking
+    and independent of the reference image entirely.
+
+    CLIP ranking only surfaces a frame near the top if its embedding sits close to the
+    *reference image's* embedding. That fails hard when the reference doesn't visually resemble
+    the real on-screen appearance closely enough (a clean vector logo vs. flat painted pitch-side
+    text is the extreme case -- see CLAUDE.md's domain-gap notes): a genuine appearance can end
+    up ranked far outside any practical top-K cutoff even though the real signage spells the
+    brand's name in plain legible text. Searching every sharp frame's own detected text for the
+    brand's name sidesteps both CLIP and the reference image -- it's a literal string match
+    against the brand name the analyst typed, so it works the same whether the registered
+    reference is a good photo, a bad vector mark, or has no legible text on it at all. Doesn't
+    help a placement with no text anywhere (a pure graphic mark on a jersey, say); that residual
+    case still depends on the reference image actually resembling the real appearance.
+
+    Every hit gets a fixed score of 1.0 (a text match is a categorical confirmation, not a
+    graded similarity) so it sorts above weaker CLIP-only candidates when merged via
+    `merge_candidates()`.
+    """
+    text_by_frame = ocr.detect_text_cached(
+        [f.file_path for f in frames], ocr_cache_dir, on_progress=on_progress,
+    )
+    return [
+        RankedFrame(frame=f, score=1.0)
+        for f in frames
+        if ocr.matches_brand_name(text_by_frame.get(str(Path(f.file_path)), []), brand)
+    ]
+
+
+def merge_candidates(*ranked_lists: list[RankedFrame]) -> list[RankedFrame]:
+    """Union multiple candidate lists for the same asset into one, score-sorted list.
+
+    Dedupes by frame, keeping each frame's highest score across sources (a frame found by both
+    CLIP ranking and the direct text search is still one candidate, not two). Stays sorted
+    score-descending, since `deduplicate_by_time()` assumes the first frame kept in a time
+    cluster is the best-scoring representative of it.
+    """
+    best: dict[str, RankedFrame] = {}
+    for ranked in ranked_lists:
+        for rf in ranked:
+            key = str(rf.frame.file_path)
+            if key not in best or rf.score > best[key].score:
+                best[key] = rf
+    return sorted(best.values(), key=lambda rf: -rf.score)
+
+
 def deduplicate_by_time(ranked: list[RankedFrame], min_gap_sec: float = 10.0) -> list[RankedFrame]:
     """Collapse candidates that are the same physical appearance, not independent evidence.
 
