@@ -29,3 +29,12 @@ mobileclip2_b.ts
 .agents/
 .claude/
 skills-lock.json
+.nimbalyst/
+
+# Office lock files, created while a doc is open in Word.
+~$*
+
+# The walkthrough document and its assets. Kept out of the repo deliberately: it is
+# ~11MB of broadcast stills, a GIF and a .docx that would grow on every rebuild, and
+# the published copy is the one anyone should read (linked from README.md).
+docs/
