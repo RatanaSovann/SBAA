@@ -9,7 +9,7 @@ sponsor showed up, and pasting screenshots into a spreadsheet. The output is del
 **two approved example frames per placement**, each with a box drawn round the branding, exported
 as an Excel workbook for the ML team's downstream exposure-value scan.
 
-📄 **[Read the walkthrough →](https://claude.ai/code/artifact/aa2feacc-3313-424f-8117-61e369866ea7)**
+📄 **[Read the walkthrough →](https://ratanasovann.github.io/SBAA/)**
 A 10–15 minute illustrated tour: a real run from three logos, the discovered placements, the
 exported brief, cost projections at motorsport scale, and the limitations.
 
