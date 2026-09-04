@@ -1,0 +1,530 @@
+<title>Sport Brand Annotation Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,300;6..72,400;6..72,500&display=swap">
+<style>
+  :root {
+    --paper: #F2F3F0;
+    --surface: #FFFFFF;
+    --sunk: #E9EBE6;
+    --ink: #15191A;
+    --muted: #5B6663;
+    --line: #DBDFD9;
+    --line-strong: #C3C9C0;
+    --accent: #0E6A5E;
+    --accent-soft: #DCEDE9;
+    --signal: #B44E18;
+    --signal-soft: #F6E4D8;
+
+    --display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --body: "Newsreader", Georgia, "Times New Roman", serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+
+    --measure: 34rem;
+    --wide: 58rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0D1211;
+      --surface: #151A19;
+      --sunk: #101615;
+      --ink: #E7EBE7;
+      --muted: #94A19C;
+      --line: #263030;
+      --line-strong: #38443F;
+      --accent: #57D2BB;
+      --accent-soft: #14302C;
+      --signal: #EE9459;
+      --signal-soft: #33200F;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #0D1211;
+    --surface: #151A19;
+    --sunk: #101615;
+    --ink: #E7EBE7;
+    --muted: #94A19C;
+    --line: #263030;
+    --line-strong: #38443F;
+    --accent: #57D2BB;
+    --accent-soft: #14302C;
+    --signal: #EE9459;
+    --signal-soft: #33200F;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: var(--wide); margin: 0 auto; padding: 0 1.5rem 5rem; }
+  .measure { max-width: var(--measure); }
+  p, ul, ol { max-width: var(--measure); }
+
+  h1, h2, h3 { font-family: var(--display); text-wrap: balance; line-height: 1.15; margin: 0; }
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
+
+  code {
+    font-family: var(--mono); font-size: 0.86em;
+    background: var(--sunk); padding: 0.1em 0.35em; border-radius: 3px;
+  }
+
+  .masthead {
+    border-bottom: 1px solid var(--line-strong);
+    padding: 4rem 0 2rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 1.1rem;
+  }
+
+  .masthead h1 {
+    font-size: clamp(2.3rem, 5.5vw, 3.3rem);
+    font-weight: 700; letter-spacing: -0.025em; max-width: 18ch;
+  }
+
+  .standfirst {
+    font-size: 1.16rem; color: var(--muted);
+    margin: 1.3rem 0 0; max-width: 46ch;
+  }
+
+  .factstrip {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1.4rem 2rem; margin-top: 2.4rem; padding-top: 1.6rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .fact dt {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 0.35rem;
+  }
+
+  .fact dd {
+    font-family: var(--display); font-size: 1.45rem; font-weight: 600;
+    font-variant-numeric: tabular-nums; margin: 0; letter-spacing: -0.015em;
+  }
+
+  .fact dd small {
+    display: block; font-family: var(--body); font-size: 0.8rem; font-weight: 400;
+    color: var(--muted); letter-spacing: 0; margin-top: 0.1rem;
+  }
+
+  h2 {
+    font-size: clamp(1.5rem, 3.2vw, 1.95rem); font-weight: 700; letter-spacing: -0.02em;
+    margin: 4rem 0 0.9rem; padding-top: 1.2rem; border-top: 2px solid var(--ink);
+  }
+
+  h2 .h2-label {
+    display: block; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--signal); margin-bottom: 0.6rem; font-weight: 500;
+  }
+
+  h3 { font-size: 1.15rem; font-weight: 600; margin: 2.4rem 0 0.7rem; }
+
+  p { margin: 0 0 1rem; }
+  ul, ol { margin: 0 0 1.1rem; padding-left: 1.2rem; }
+  li { margin-bottom: 0.45rem; }
+  li::marker { color: var(--muted); }
+  strong { font-weight: 500; }
+
+  figure { margin: 2rem 0; max-width: var(--wide); }
+
+  .shot {
+    position: relative; padding: 10px;
+    background: var(--surface); border: 1px solid var(--line);
+  }
+
+  .shot::before, .shot::after {
+    content: ""; position: absolute; width: 14px; height: 14px; border: 2px solid var(--signal);
+  }
+  .shot::before { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+  .shot::after { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+  .shot img { display: block; width: 100%; height: auto; }
+
+  figcaption {
+    font-size: 0.89rem; color: var(--muted); margin-top: 0.65rem; max-width: 52ch;
+  }
+
+  figcaption b {
+    font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink); font-weight: 500; margin-right: 0.5rem;
+  }
+
+  .demo-gif { max-width: 41rem; }
+
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin: 2rem 0; max-width: var(--wide); }
+  .pair figure { margin: 0; }
+
+  .funnel { margin: 1.6rem 0 2rem; border-top: 1px solid var(--line); max-width: var(--wide); }
+
+  .stage {
+    display: grid; grid-template-columns: 6.5rem 1fr; gap: 0 1.1rem;
+    align-items: baseline; padding: 0.55rem 0; border-bottom: 1px solid var(--line);
+  }
+
+  .stage-count {
+    font-family: var(--mono); font-size: 0.92rem; font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .stage-count.add { color: var(--signal); }
+  .stage-count.final { color: var(--accent); font-weight: 500; }
+
+  .stage-name { font-family: var(--display); font-size: 0.92rem; font-weight: 600; }
+  .stage-note { font-size: 0.86rem; color: var(--muted); margin-top: 0.05rem; max-width: 54ch; }
+  .stage-bar { height: 4px; background: var(--accent); opacity: 0.5; margin-top: 0.45rem; border-radius: 2px; }
+  .stage-bar.add { background: var(--signal); }
+
+  .note {
+    border-left: 2px solid var(--accent); background: var(--accent-soft);
+    padding: 0.95rem 1.15rem; margin: 1.6rem 0; max-width: var(--measure);
+  }
+  .note.warn { border-left-color: var(--signal); background: var(--signal-soft); }
+  .note p:last-child { margin-bottom: 0; }
+  .note .note-label {
+    font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 0.35rem;
+  }
+
+  .table-wrap { overflow-x: auto; margin: 1.5rem 0; max-width: var(--wide); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+  th, td { text-align: left; padding: 0.55rem 1rem 0.55rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: var(--mono); font-size: 0.69rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted); font-weight: 500; border-bottom-color: var(--line-strong); white-space: nowrap;
+  }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.cat { font-family: var(--display); font-weight: 600; }
+
+  .limits { list-style: none; padding: 0; max-width: var(--measure); counter-reset: lim; }
+  .limits > li {
+    counter-increment: lim; padding-left: 2.2rem; position: relative; margin-bottom: 1.1rem;
+  }
+  .limits > li::before {
+    content: counter(lim, decimal-leading-zero); position: absolute; left: 0; top: 0.12rem;
+    font-family: var(--mono); font-size: 0.82rem; color: var(--signal);
+  }
+  .limits b { font-family: var(--display); font-weight: 600; font-size: 0.98rem; }
+
+  footer {
+    margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--line-strong);
+    font-size: 0.88rem; color: var(--muted);
+  }
+
+  @media (max-width: 700px) {
+    body { font-size: 16px; }
+    .stage { grid-template-columns: 5rem 1fr; }
+    .pair { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <p class="eyebrow">Prototype walkthrough &middot; September 2026</p>
+    <h1>Sport Brand Annotation Assistant</h1>
+    <p class="standfirst">
+      Upload three brand logos. It finds where each brand appeared in a full match broadcast, works
+      out what kind of placement each appearance is, and an analyst confirms the best two.
+    </p>
+
+    <dl class="factstrip">
+      <div class="fact"><dt>Broadcast</dt><dd>633,325<small>frames, 3h 31m</small></dd></div>
+      <div class="fact"><dt>Given to it</dt><dd>3<small>logo files, nothing else</small></dd></div>
+      <div class="fact"><dt>Found</dt><dd>6<small>placements, unprompted</small></dd></div>
+      <div class="fact"><dt>Took</dt><dd>~6 min<small>on warm caches</small></dd></div>
+    </dl>
+  </header>
+
+  <p class="measure">
+    The output is deliberately small &mdash; two approved example frames per placement, each with a
+    box drawn round the branding, exported as an Excel workbook for the ML team's exposure-value
+    scan.
+  </p>
+
+  <p class="measure">
+    Everything here is one real run on the 2026 World Cup final. It is a prototype, and the
+    limitations section is not decorative.
+  </p>
+
+  <h2><span class="h2-label">The demo</span>Three logos in, six placements out</h2>
+
+  <figure class="demo-gif">
+    <div class="shot"><img src="{{img:demo.gif}}" alt="Screen recording: an empty app, three brand logos added, the ranking pass running, and discovered results appearing"></div>
+    <figcaption><b>Live run</b> From an empty session to classified results for Hisense, Adidas and Visa. Recorded in the browser.</figcaption>
+  </figure>
+
+  <div class="pair">
+    <figure>
+      <div class="shot"><img src="{{img:blank-state.jpg}}" alt="The app with no brand assets registered"></div>
+      <figcaption><b>Start</b> Nothing registered </figcaption>
+    </figure>
+    <figure>
+      <div class="shot"><img src="{{img:three-pending.jpg}}" alt="Three brands queued: Hisense, Adidas and Visa, each pending category discovery"></div>
+      <figcaption><b>Input</b> A brand name and a logo file each. No category, no example crop from the match.</figcaption>
+    </figure>
+  </div>
+
+  <p class="measure">
+    Nobody told it to look for a jersey, a board, a trophy or a wall. It reported these back:
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Brand</th>
+          <th>Reference logo</th>
+          <th>Placements discovered</th>
+          <th>Appearances</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Hisense</strong></td>
+          <td>Wordmark &mdash; legible text</td>
+          <td class="cat">LED Board<br>Wall</td>
+          <td class="num">22<br>2</td>
+        </tr>
+        <tr>
+          <td><strong>Adidas</strong></td>
+          <td>Graphic mark &mdash; no text at all</td>
+          <td class="cat">Jersey<br>LED Board<br>Trophy</td>
+          <td class="num">6<br>8<br>1</td>
+        </tr>
+        <tr>
+          <td><strong>Visa</strong></td>
+          <td>Wordmark &mdash; legible text</td>
+          <td class="cat">LED Board</td>
+          <td class="num">23</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="measure">
+    Adidas is the interesting one. Its reference is the bare three-stripe mark with no readable text,
+    so the text-matching stage does nothing for it &mdash; and it still separated jersey appearances
+    from perimeter boards from the trophy presentation.
+  </p>
+
+  <figure>
+    <div class="shot"><img src="{{img:results-adidas.jpg}}" alt="Adidas results split into Jersey, LED Board and Trophy sections, each with candidate frames and a funnel summary"></div>
+    <figcaption><b>Discovered, not configured</b> One logo file produced three separate placement types, each with its own candidate list.</figcaption>
+  </figure>
+
+  <h3>You control what it is allowed to choose from</h3>
+
+  <p class="measure">
+    Those placement types are an editable list, not something baked into the code. Each entry is a
+    name <em>plus</em> a description, and the description is sent to the model word for word &mdash;
+    it is what tells the model what counts and, just as importantly, what to rule out. Adding an
+    entry here is how you point it at something new.
+  </p>
+
+  <p class="measure">
+    This matters more than it looks, because a missing type does not come back blank. The model is
+    asked to pick the best match from the list, so a placement with no bucket comes back confidently
+    labelled as the nearest one instead &mdash; a Hisense backdrop wall in the VAR room was called an
+    LED Board until <em>Wall</em> existed as an option. For motorsport, this is where sidepod, rear
+    wing, halo, driver suit and pit wall would be added before the first event.
+  </p>
+
+  <figure>
+    <div class="shot"><img src="{{img:placement-types.jpg}}" alt="The placement categories panel listing LED Board, Trophy, Jersey and Wall with their descriptions, above a form for adding a new category"></div>
+    <figcaption><b>The taxonomy</b> Four built-in types, each with the description the model is given. Bare names alone produced false positives in testing &mdash; the exclusions in these descriptions are doing real work.</figcaption>
+  </figure>
+
+  <h2><span class="h2-label">The output</span>What gets handed over</h2>
+
+  <p class="measure">
+    The analyst picks up to two examples per placement, drags a box around the branding, and
+    approves. Export produces one Excel workbook, one sheet per brand, one row per approved
+    example &mdash; asset, frame number, timestamp, and the image with the box burned in.
+  </p>
+
+  <figure>
+    <div class="shot"><img src="{{img:excel-export.jpg}}" alt="The exported workbook open in Excel, showing the Hisense sheet with Wall and LED Board rows and sheet tabs for Adidas, Hisense and Visa"></div>
+    <figcaption><b>brief.xlsx</b> Three sheets, one per brand. No rejected candidates, no scores, no decision history &mdash; the same shape as the spreadsheet this replaces.</figcaption>
+  </figure>
+
+  <h2><span class="h2-label">How it works</span>Four cheap filters before one expensive one</h2>
+
+  <p class="measure">
+    The machine this runs on has no usable GPU, so nothing can afford to look at every frame twice.
+    Each stage only sees what the cheaper stage before it let through. Visa's numbers:
+  </p>
+
+  <div class="funnel">
+    <div class="stage">
+      <div class="stage-count">6,334</div>
+      <div class="stage-body">
+        <div class="stage-name">Sampled, one frame every 2 seconds</div>
+        <div class="stage-note">From 633,325. Cached per video &mdash; every brand after the first reuses it.</div>
+        <div class="stage-bar" style="width:100%"></div>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-count">4,602</div>
+      <div class="stage-body">
+        <div class="stage-name">Sharp enough to bother with</div>
+        <div class="stage-note">A blur filter drops motion-blurred and mid-cut frames.</div>
+        <div class="stage-bar" style="width:73%"></div>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-count">4</div>
+      <div class="stage-body">
+        <div class="stage-name">Look like the logo, and read as the brand</div>
+        <div class="stage-note">Image-similarity ranking, then OCR re-checks the top 50 for the logo's own wording.</div>
+        <div class="stage-bar" style="width:12%"></div>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-count add">+140</div>
+      <div class="stage-body">
+        <div class="stage-name">Have &ldquo;Visa&rdquo; written somewhere in the frame</div>
+        <div class="stage-note">A direct text search of every sharp frame, ignoring the logo image entirely. On a wordmark brand this does most of the recall work.</div>
+        <div class="stage-bar add" style="width:34%"></div>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-count">50</div>
+      <div class="stage-body">
+        <div class="stage-name">Sent to a vision model with the logo alongside</div>
+        <div class="stage-note">Is this brand actually visible, and on what kind of placement? Claude Haiku, capped at 50 frames per brand.</div>
+        <div class="stage-bar" style="width:22%"></div>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="stage-count final">23</div>
+      <div class="stage-body">
+        <div class="stage-name">Distinct appearances, near-duplicates collapsed</div>
+        <div class="stage-note">All classified LED Board. The analyst reviews these and keeps two.</div>
+        <div class="stage-bar" style="width:16%"></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="measure">
+    Two costs are per <em>video</em> (sampling, and reading the text out of every frame) and one is
+    per <em>brand</em> (the vision-model calls). That split is what makes adding the fourth, tenth
+    or ninetieth brand cheap.
+  </p>
+
+  <h2><span class="h2-label">Scale</span>What a supercars weekend would cost</h2>
+
+  <p class="measure">
+    Measured on the left, projected on the right for 90+ brands and 200+ assets. The projections are
+    extrapolations from this run, not measurements.
+  </p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th></th><th>This match (measured)</th><th>Race weekend (projected)</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Sampling + reading all frame text</td>
+          <td class="num">~75 min, once</td>
+          <td class="num">~75 min per session video</td>
+        </tr>
+        <tr>
+          <td>Vision-model calls</td>
+          <td class="num">148 calls &middot; ~$0.35</td>
+          <td class="num">~4,500 calls &middot; <strong>~$11</strong></td>
+        </tr>
+        <tr>
+          <td>&hellip;if searched per placement instead</td>
+          <td class="num">&mdash;</td>
+          <td class="num">~10,000 calls &middot; <strong>~$24</strong></td>
+        </tr>
+        <tr>
+          <td>Vision-model wall time</td>
+          <td class="num">~4 min</td>
+          <td class="num">~2 h sequential &middot; ~15 min if parallelised</td>
+        </tr>
+        <tr>
+          <td>Analyst drawing boxes</td>
+          <td class="num">4 boxes</td>
+          <td class="num">~400 boxes &middot; <strong>2&ndash;3 hours</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    <span class="note-label">The headline</span>
+    <p>
+      API spend is roughly <strong>$10&ndash;25 per event</strong> Compute is a couple of hours per video and mostly parallelisable.
+    </p>
+  </div>
+
+  <h2><span class="h2-label">Honesty</span>What this prototype can't do</h2>
+
+  <ol class="limits">
+    <li>
+      <b>It gets things wrong, confidently.</b> In this same run the trophy in a Louis Vuitton
+      presentation trunk was classified as an Adidas <em>Trophy</em> placement. There is no Adidas
+      branding in that frame. The analyst review step exists precisely for this &mdash; nothing is
+      accepted automatically &mdash; but do not read the candidate lists as findings.
+    </li>
+    <li>
+      <b>Reading text off signage is doing most of the work.</b> That is ideal for static perimeter
+      boards in even light. On a car at 200 mph &mdash; small, curved, motion-blurred, often no text
+      at all &mdash; it is the technique that transfers worst. Motorsport would likely need a
+      detector trained on liveries instead.
+    </li>
+    <li>
+      <b>Every box is drawn by hand.</b> An open-vocabulary detector was tested and failed
+      completely on perimeter boards and jerseys, so it was dropped. That is why box-drawing is the
+      scaling bottleneck above.
+    </li>
+    <li>
+      <b>It is one app on one laptop.</b> CPU-only, single video at a time, no queue, no users, no
+      test suite. Fine for proving the idea; not what you would run weekly against a race calendar.
+    </li>
+    <li>
+      <b>A missing placement type becomes a wrong answer, not a blank.</b> The model picks the
+      nearest option from a fixed list, so motorsport categories (sidepod, rear wing, halo, driver
+      suit, pit wall&hellip;) would need adding before the first real event.
+    </li>
+  </ol>
+
+  <figure>
+    <div class="shot"><img src="{{img:false-positive.jpg}}" alt="The review screen showing a Louis Vuitton trophy trunk classified as an Adidas Trophy placement"></div>
+    <figcaption><b>A real false positive</b> Classified as Adidas &mdash; Trophy at score 0.538. It is a Louis Vuitton trunk. This is why a human approves every example.</figcaption>
+  </figure>
+
+  <h2><span class="h2-label">Next</span>If this goes further</h2>
+
+  <ol class="measure">
+    <li><strong>Run the vision-model calls in parallel.</strong> Small change, turns hours into minutes.</li>
+    <li><strong>Move ingest and ranking off the browser session</strong> into a queue with workers; keep the app for review only.</li>
+    <li><strong>Get a GPU.</strong> The staged design came from not having one; a detector needs one.</li>
+    <li><strong>Fine-tune a detector on liveries.</strong> Highest value &mdash; it fixes recall on cars <em>and</em> proposes the boxes, which is the analyst-time problem.</li>
+    <li><strong>Use the contracted asset list.</strong> In motorsport you already know which brands should appear, which turns open discovery into checklist verification &mdash; a much easier question.</li>
+  </ol>
+
+  <footer>
+    <p class="measure">
+      One 7.6&nbsp;GB broadcast, CPU-only hardware, one analyst. Measured figures are from the run
+      shown on this page; anything labelled projected is an extrapolation.
+    </p>
+  </footer>
+
+</div>

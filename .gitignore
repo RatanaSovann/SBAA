@@ -29,3 +29,7 @@ mobileclip2_b.ts
 .agents/
 .claude/
 skills-lock.json
+.nimbalyst/
+
+# Office lock files, created while a doc in docs/ is open in Word.
+~$*
