@@ -11,6 +11,10 @@ as an Excel workbook for the ML team's downstream exposure-value scan.
 
 ## What a run looks like
 
+You give it a brand name and a logo file. No category, no example crop from the match:
+
+![Three brands queued for auto-discovery — Hisense, Adidas and Visa, each with just a logo](assets/01-register.jpg)
+
 One real pass, three logos in, six placements found — nobody specified a category:
 
 | Brand | Reference logo | Placements discovered | Appearances |
@@ -18,6 +22,11 @@ One real pass, three logos in, six placements found — nobody specified a categ
 | Hisense | Wordmark | LED Board, Wall | 22, 2 |
 | Adidas | Graphic mark, no text | Jersey, LED Board, Trophy | 6, 8, 1 |
 | Visa | Wordmark | LED Board | 23 |
+
+![Adidas results split into Jersey, LED Board and Trophy, each with its own ranked candidate frames](assets/02-discovered.jpg)
+
+*Adidas from a bare three-stripe mark with no readable text — still separated into three placement
+types, each with its own candidate list.*
 
 Narrowing 633,325 broadcast frames down to 23 candidates for Visa:
 
@@ -81,6 +90,10 @@ session, run it offline — it writes to the same cache the app reads:
 5. **Review & approve** — page through candidates, draw a box, approve at most two per placement.
 6. **Export** — one Excel workbook, one sheet per brand.
 
+![The exported brief open in Excel: one sheet per brand, with asset, frame number, timestamp and the boxed frame](assets/03-export.jpg)
+
+*The deliverable: asset, frame number, timestamp and the frame with the analyst's box burned in.*
+
 ## Layout
 
 ```
@@ -114,6 +127,11 @@ This is a **prototype**, and its limits are load-bearing rather than incidental:
 - The vision model gets things wrong confidently — in one run it classified a Louis Vuitton trophy
   trunk as an Adidas placement. **Nothing is accepted automatically**; the Step 5 analyst review is
   the intended backstop, not a formality.
+
+  ![A trophy in a Louis Vuitton presentation trunk, surfaced as an Adidas Trophy candidate](assets/04-false-positive.jpg)
+
+  *A real false positive, surfaced at score 0.538. There is no Adidas branding in that frame.*
+
 - There is no automatic bounding box. An open-vocabulary detector was tested and failed completely
   on perimeter boards and jerseys, so the analyst draws every box by hand.
 - Reading the brand name out of frame text does most of the recall work. That suits static signage;
